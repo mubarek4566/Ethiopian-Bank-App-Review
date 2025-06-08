@@ -1,4 +1,8 @@
 import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+from tqdm import tqdm
 from transformers import pipeline
 import nltk
 from nltk.sentiment import SentimentIntensityAnalyzer
@@ -8,6 +12,46 @@ nltk.download('vader_lexicon')
 class sentimentAnalysis:
     def __init__(self, path):
         self.df = path
+    
+    def visualize_results(agg_results):
+        """Create visualizations of sentiment analysis results"""
+        # Set style
+        sns.set_style("whitegrid")
+        
+        # 1. Sentiment distribution by bank and rating
+        plt.figure(figsize=(12, 8))
+        sns.barplot(data=agg_results, x='rating', y='mean_sentiment', hue='bank')
+        plt.title('Average Sentiment by Bank and Star Rating')
+        plt.ylabel('Average Sentiment Score (0-1)')
+        plt.xlabel('Star Rating')
+        plt.legend(title='Bank')
+        plt.tight_layout()
+        plt.savefig('figures/sentiment_by_bank_rating.png')
+        plt.close()
+        
+        # 2. Review count by rating and bank
+        plt.figure(figsize=(12, 8))
+        sns.barplot(data=agg_results, x='rating', y='count', hue='bank')
+        plt.title('Review Count by Bank and Star Rating')
+        plt.ylabel('Number of Reviews')
+        plt.xlabel('Star Rating')
+        plt.legend(title='Bank')
+        plt.tight_layout()
+        plt.savefig('figures/review_count_by_bank_rating.png')
+        plt.close()
+
+        # 3. Heatmap of sentiment by bank and rating
+        pivot_table = agg_results.pivot(index='bank', columns='rating', values='mean_sentiment')
+        plt.figure(figsize=(12, 8))
+        sns.heatmap(pivot_table, annot=True, cmap='coolwarm', center=0.5, vmin=0, vmax=1)
+        plt.title('Sentiment Heatmap by Bank and Rating')
+        plt.ylabel('Bank')
+        plt.xlabel('Star Rating')
+        plt.tight_layout()
+        plt.savefig('figures/sentiment_heatmap.png')
+        plt.close()
+    
+
 
     def analyze_sentiment_vader(self, column='review'):
         sia = SentimentIntensityAnalyzer()
