@@ -12,45 +12,60 @@ nltk.download('vader_lexicon')
 class sentimentAnalysis:
     def __init__(self, path):
         self.df = path
+        self.agg_results = None
     
-    def visualize_results(agg_results):
-        """Create visualizations of sentiment analysis results"""
-        # Set style
-        sns.set_style("whitegrid")
+    def analyze_sentiment1(self, model_name="distilbert-base-uncased-finetuned-sst-2-english", batch_size=32):
+        """Perform sentiment analysis using HuggingFace pipeline"""
+        # Initialize sentiment analysis pipeline (simplified version)
+        sentiment_pipeline = pipeline(
+            "sentiment-analysis", 
+            model=model_name,
+            device=-1  # Force CPU usage
+        )
         
-        # 1. Sentiment distribution by bank and rating
-        plt.figure(figsize=(12, 8))
-        sns.barplot(data=agg_results, x='rating', y='mean_sentiment', hue='bank')
-        plt.title('Average Sentiment by Bank and Star Rating')
-        plt.ylabel('Average Sentiment Score (0-1)')
-        plt.xlabel('Star Rating')
-        plt.legend(title='Bank')
-        plt.tight_layout()
-        plt.savefig('figures/sentiment_by_bank_rating.png')
-        plt.close()
+        # Process reviews in batches
+        reviews = self.df['review'].tolist()
+        sentiments = []
         
-        # 2. Review count by rating and bank
-        plt.figure(figsize=(12, 8))
-        sns.barplot(data=agg_results, x='rating', y='count', hue='bank')
-        plt.title('Review Count by Bank and Star Rating')
-        plt.ylabel('Number of Reviews')
-        plt.xlabel('Star Rating')
-        plt.legend(title='Bank')
-        plt.tight_layout()
-        plt.savefig('figures/review_count_by_bank_rating.png')
-        plt.close()
-
-        # 3. Heatmap of sentiment by bank and rating
-        pivot_table = agg_results.pivot(index='bank', columns='rating', values='mean_sentiment')
-        plt.figure(figsize=(12, 8))
-        sns.heatmap(pivot_table, annot=True, cmap='coolwarm', center=0.5, vmin=0, vmax=1)
-        plt.title('Sentiment Heatmap by Bank and Rating')
-        plt.ylabel('Bank')
-        plt.xlabel('Star Rating')
-        plt.tight_layout()
-        plt.savefig('figures/sentiment_heatmap.png')
-        plt.close()
+        print("Performing sentiment analysis...")
+        for i in tqdm(range(0, len(reviews), batch_size)):
+            batch = reviews[i:i+batch_size]
+            try:
+                results = sentiment_pipeline(batch)
+                sentiments.extend(results)
+            except Exception as e:
+                print(f"Error processing batch {i}: {str(e)}")
+                # Fill with neutral sentiment if error occurs
+                sentiments.extend([{'label': 'NEUTRAL', 'score': 0.5}] * len(batch))
+        
+        # Extract sentiment scores
+        self.df['sentiment_label'] = [s['label'] for s in sentiments]
+        self.df['sentiment_score'] = [s['score'] for s in sentiments]
+        
+        # Convert to numeric sentiment (1 for POSITIVE, 0 for NEGATIVE, 0.5 for NEUTRAL)
+        self.df['sentiment_numeric'] = self.df['sentiment_label'].apply(
+            lambda x: 1 if x == 'POSITIVE' else (0 if x == 'NEGATIVE' else 0.5)
+        )
+            
+        return self.df
     
+    def aggregate_sentiment1(self):
+        """Aggregate sentiment scores by bank and rating"""
+        # Group by bank and rating
+        agg_results = self.df.groupby(['bank', 'rating']).agg(
+            mean_sentiment=('sentiment_numeric', 'mean'),
+            count=('reviewId', 'count'),
+            mean_sentiment_score=('sentiment_score', 'mean')
+        ).reset_index()
+        
+        # Add sentiment category based on mean
+        agg_results['sentiment_category'] = pd.cut(
+            agg_results['mean_sentiment'],
+            bins=[-0.1, 0.33, 0.66, 1.1],
+            labels=['Negative', 'Neutral', 'Positive']
+        )
+        
+        return agg_results
 
 
     def analyze_sentiment_vader(self, column='review'):
@@ -73,6 +88,40 @@ class sentimentAnalysis:
 
         self.df['sentiment_vader'] = sentiments
         return self.df
+
+    def visualize_vader_sentiment(self):
+        # Set style
+        sns.set(style="whitegrid")
+
+        # 1. Countplot of overall sentiment distribution
+        plt.figure(figsize=(8, 5))
+        sns.countplot(data=self.df, x='sentiment_vader', order=['positive', 'neutral', 'negative'], palette='Set2')
+        plt.title("Overall VADER Sentiment Distribution")
+        plt.xlabel("Sentiment")
+        plt.ylabel("Number of Reviews")
+        plt.tight_layout()
+        plt.show()
+
+        # 2. Sentiment distribution by bank
+        plt.figure(figsize=(12, 6))
+        sns.countplot(data=self.df, x='bank', hue='sentiment_vader', order=self.df['bank'].value_counts().index, palette='Set1')
+        plt.title("VADER Sentiment Distribution by Bank")
+        plt.xlabel("Bank")
+        plt.ylabel("Number of Reviews")
+        plt.xticks(rotation=45)
+        plt.legend(title="Sentiment")
+        plt.tight_layout()
+        plt.show()
+
+        # 3. Pie chart (optional)
+        sentiment_counts = self.df['sentiment_vader'].value_counts()
+        plt.figure(figsize=(6, 6))
+        sentiment_counts.plot.pie(autopct='%1.1f%%', startangle=90, colors=sns.color_palette("Set2"))
+        plt.title("VADER Sentiment Proportions")
+        plt.ylabel("")  # Hide y-label
+        plt.tight_layout()
+        plt.show()
+
 
     def analyze_sentiment_bert(self, column='review', batch_size=32):
         sentiment_pipeline = pipeline("sentiment-analysis", model="distilbert-base-uncased-finetuned-sst-2-english")
