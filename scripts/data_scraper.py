@@ -8,7 +8,7 @@ class ScrapData:
     def __init__(self, path=None):
         self.df = path  
 
-    def fetch_reviews(self, app_id, app_name, n_reviews=400):
+    def fetch_reviews(self, app_id, app_name, n_reviews=600):
         all_reviews = {}
         batch_size = 200
         token = None
