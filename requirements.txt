@@ -1,3 +1,16 @@
 pandas
 numpy
 matplotlib.pyplot as plt
+Sort
+reviews
+time
+defaultdict
+NMF
+TfidfVectorizer
+spacy
+re
+nltk
+SentimentIntensityAnalyzer
+pipeline
+tqdm
+seaborn
