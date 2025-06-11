@@ -38,5 +38,3 @@ class insert_data:
         conn.close()
         print("CSV data inserted into reviews table successfully.")
 
-       ['reviewId', 'review', 'clean_review', 'sentiment_label',
-       'sentiment_score', 'themes', 'cluster'] 
